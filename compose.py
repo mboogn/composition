@@ -1,8 +1,5 @@
 
 from dis import opmap, opname, COMPILER_FLAG_NAMES
-from types import FunctionType
-from itertools import chain, filterfalse
-
 from types import FunctionType, CodeType
 from itertools import chain, filterfalse
 
