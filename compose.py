@@ -3,8 +3,52 @@ from dis import opmap, opname, COMPILER_FLAG_NAMES
 from types import FunctionType
 from itertools import chain, filterfalse
 
-from addedmanually.getem_ext import get_code, get_co_dict, is_not_iteratorlike
+from types import FunctionType, CodeType
+from itertools import chain, filterfalse
 
+def get_code(x):
+    "Returns the code attribute of x.  Methodology copied and altered from the dis module."
+    if isinstance(x, CodeType): return x
+    # Extract functions from methods.
+    x = getattr(x, '__func__', x)
+    # Extract compiled code objects from...
+    #x = getattr(x, '__code__', 0) or getattr(x, 'gi_code', 0) or getattr(x, 'ag_code', 0) or getattr(x, 'cr_code', x)
+    # ...lambda || function,  #...or generator object,  #...or asynchronous generator object  #...or coroutine.
+    return getattr(x, '__code__', 0) \
+           or getattr(x, 'gi_code', 0) \
+           or getattr(x, 'ag_code', 0) \
+           or getattr(x, 'cr_code', x)
+
+
+code_co_varnames = ("co_name", "co_code", "co_lnotab", 
+    "co_firstlineno", "co_filename", "co_stacksize", "co_flags", 
+    "co_nlocals", "co_argcount", "co_posonlyargcount", "co_kwonlyargcount", 
+    "co_names", "co_varnames", "co_consts", "co_cellvars", "co_freevars")
+def get_co_dict(fcode, as_itemgen=False):
+    "returns a dictionary or a key-value-pair generator of the co_-prefixed code attributes of object ‘fcode’"
+    fcode = get_code(fcode)
+    if as_itemgen: return ((ky, getattr(fcode, ky)) for ky in code_co_varnames)
+    return {ky: getattr(fcode, ky) for ky in code_co_varnames}
+
+
+co_flags_map = {v: k for k, v in COMPILER_FLAG_NAMES.items()}
+
+_getcocoflags = lambda f: getattr(get_code(f), 'co_flags', None)
+_g_flagcheck = lambda x: x.__and__
+
+_isoptimized = _g_flagcheck(co_flags_map['OPTIMIZED'])
+_has__⃰args = _g_flagcheck(co_flags_map["VARARGS"])
+_has__⃰_⃰kwargs = _g_flagcheck(co_flags_map['VARKEYWORDS'])
+_isnested = _g_flagcheck(co_flags_map['NESTED'])
+_isgenerator = _g_flagcheck(co_flags_map['GENERATOR'])
+_iscoroutine = _g_flagcheck(co_flags_map['COROUTINE'])
+_is_iterable_coroutine = _g_flagcheck(co_flags_map['ITERABLE_COROUTINE'])
+_is_async_generator = _g_flagcheck(co_flags_map['ASYNC_GENERATOR'])
+
+def is_not_iteratorlike(f):
+    flgs = _getcocoflags(f)
+    return not (_isgenerator(flgs) or _iscoroutine(flgs) or _is_iterable_coroutine(flgs) \
+        or _is_async_generator(flgs))
 
 
 _bc_loadconst = opmap['LOAD_CONST']
